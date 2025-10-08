@@ -1,7 +1,6 @@
 package br.com.devjf.cashwise.domain.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -30,8 +29,6 @@ public class Transaction {
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
-
-    private LocalDate date;
 
     @Column(length = 255)
     private String description;
