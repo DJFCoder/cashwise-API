@@ -43,7 +43,7 @@ public class TransactionMapper {
      * </ul>
      * </p>
      *
-     * @param request DTO contendo os dados da transação a ser criada
+     * @param request DTO contendo os dados do lançamento a ser criado
      * @return entidade Transaction populada com os dados do request
      * @throws EntityNotFoundException  se a categoria especificada não existir
      * @throws IllegalArgumentException se o tipo ou recorrência forem inválidos
@@ -69,7 +69,7 @@ public class TransactionMapper {
      * </p>
      *
      * @param entity entidade Transaction a ser convertida
-     * @return DTO TransactionResponse contendo os dados formatados da transação
+     * @return DTO TransactionResponse contendo os dados formatados do lançamento
      */
     public TransactionResponse toResponse(Transaction entity) {
         return new TransactionResponse(
@@ -89,8 +89,12 @@ public class TransactionMapper {
      * maiúsculas antes da conversão para garantir compatibilidade.
      * </p>
      *
-     * @param type string representando o tipo da transação (ex: "REVENUE",
-     *             "EXPENSE")
+     * @param type string representando o tipo do lançamento
+     *             {
+     *             exemplo:
+     *             "REVENUE"(receita),
+     *             "EXPENSE"(despesa)
+     *             }
      * @return enum TransactionType correspondente
      * @throws IllegalArgumentException se o tipo fornecido não corresponder a
      *                                  nenhum valor do enum

@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record TransactionRequest(
-        @NotBlank(message = "O tipo da transação é obrigatório")
+        @NotBlank(message = "O tipo de lançamento é obrigatório")
         @Size(max = 20, message = "O tipo deve conter no máximo 20 caracteres")
         @Pattern(regexp = "REVENUE|EXPENSE", message = "O tipo deve ser REVENUE ou EXPENSE")
         String type,
@@ -20,7 +20,7 @@ public record TransactionRequest(
         @Positive(message = "O ID da categoria deve ser um número positivo")
         Long categoryId,
         
-        @NotNull(message = "O valor da transação é obrigatório")
+        @NotNull(message = "O valor do lançamento é obrigatório")
         @Positive(message = "O valor deve ser positivo")
         @DecimalMax(value = "9999999999999.99", message = "O valor excede o limite permitido")
         @Digits(integer = 13, fraction = 2, message = "O valor deve ter no máximo 13 dígitos inteiros e 2 decimais")

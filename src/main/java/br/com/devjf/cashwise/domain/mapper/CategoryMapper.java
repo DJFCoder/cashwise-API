@@ -55,7 +55,7 @@ public class CategoryMapper {
      * </p>
      * <p>
      * <strong>Nota:</strong> Não inclui informações de auditoria (createdAt,
-     * updatedAt) nem a lista de transações associadas.
+     * updatedAt) nem a lista de lançamentos associados.
      * </p>
      *
      * @param entity entidade Category a ser convertida

@@ -11,14 +11,14 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO para filtrar transações. Todos os campos são opcionais e podem ser
+ * DTO para filtrar lançamentos. Todos os campos são opcionais e podem ser
  * combinados.
  */
 public record TransactionRequestFilter(
         // Filtro por período de criação
         LocalDate initialDate,
         LocalDate endDate,
-        // Filtro por tipo de transação
+        // Filtro por tipo de lançamento
         @Pattern(
                 regexp = "REVENUE|EXPENSE",
                 message = "O tipo deve ser REVENUE ou EXPENSE"
