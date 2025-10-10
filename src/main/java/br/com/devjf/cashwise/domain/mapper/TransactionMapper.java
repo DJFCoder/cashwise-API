@@ -9,16 +9,15 @@ import br.com.devjf.cashwise.domain.entity.Category;
 import br.com.devjf.cashwise.domain.entity.RecurrencyType;
 import br.com.devjf.cashwise.domain.entity.Transaction;
 import br.com.devjf.cashwise.domain.entity.TransactionType;
-import br.com.devjf.cashwise.repository.CategoryRepository;
+import br.com.devjf.cashwise.service.CategoryService;
 import jakarta.persistence.EntityNotFoundException;
 
 /**
  * Mapper responsável pela conversão entre entidades Transaction e seus
  * respectivos DTOs.
  * <p>
- * Esta classe implementa o padrão Mapper para separar a camada de apresentação
- * (DTOs) da camada de domínio (Entidades), garantindo baixo acoplamento e alta
- * coesão.
+ * Esta classe implementa o padrão Mapper para separar a camada de recebimento
+ * de dados (DTOs) da camada de domínio (Entidades).
  * </p>
  *
  * @author devjf
@@ -26,14 +25,14 @@ import jakarta.persistence.EntityNotFoundException;
 @Component
 public class TransactionMapper {
 
-    private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
 
-    public TransactionMapper(CategoryRepository categoryRepository) {
-        this.categoryRepository = categoryRepository;
+    public TransactionMapper(CategoryService categoryService) {
+        this.categoryService = categoryService;
     }
 
     /**
-     * Converte um DTO de requisição de transação em uma entidade Transaction.
+     * Converte um DTO de requisição de lançamento em uma entidade Transaction.
      * <p>
      * Este método realiza as seguintes operações:
      * <ul>
@@ -46,7 +45,7 @@ public class TransactionMapper {
      *
      * @param request DTO contendo os dados da transação a ser criada
      * @return entidade Transaction populada com os dados do request
-     * @throws EntityNotFoundException se a categoria especificada não existir
+     * @throws EntityNotFoundException  se a categoria especificada não existir
      * @throws IllegalArgumentException se o tipo ou recorrência forem inválidos
      */
     public Transaction toEntity(TransactionRequest request) {
@@ -56,7 +55,7 @@ public class TransactionMapper {
         transaction.setAmount(request.amount());
         transaction.setDescription(request.description());
         transaction.setRecurrency(convertToRecurrencyType(request.recurrency()));
-        transaction.setCategory(findCategoryById(request.categoryId()));
+        transaction.setCategory(categoryService.findCategoryById(request.categoryId()));
 
         return transaction;
     }
@@ -80,8 +79,7 @@ public class TransactionMapper {
                 entity.getAmount(),
                 entity.getCreatedAt().toLocalDate(),
                 entity.getDescription(),
-                entity.getRecurrency().name()
-        );
+                entity.getRecurrency().name());
     }
 
     /**
@@ -91,11 +89,11 @@ public class TransactionMapper {
      * maiúsculas antes da conversão para garantir compatibilidade.
      * </p>
      *
-     * @param type string representando o tipo da transação (ex: "INCOME",
-     * "EXPENSE")
+     * @param type string representando o tipo da transação (ex: "REVENUE",
+     *             "EXPENSE")
      * @return enum TransactionType correspondente
      * @throws IllegalArgumentException se o tipo fornecido não corresponder a
-     * nenhum valor do enum
+     *                                  nenhum valor do enum
      */
     private TransactionType convertToTransactionType(String type) {
         return TransactionType.valueOf(type.toUpperCase());
@@ -109,40 +107,17 @@ public class TransactionMapper {
      * </p>
      *
      * @param recurrency string representando o tipo de recorrência (ex:
-     * "MONTHLY", "ONCE")
+     *                   "MONTHLY", "UNIQUE")
      * @return enum RecurrencyType correspondente
      * @throws IllegalArgumentException se a recorrência fornecida não
-     * corresponder a nenhum valor do enum
+     *                                  corresponder a nenhum valor do enum
      */
     private RecurrencyType convertToRecurrencyType(String recurrency) {
         return RecurrencyType.valueOf(recurrency.toUpperCase());
     }
 
     /**
-     * Busca uma categoria no banco de dados pelo seu identificador.
-     * <p>
-     * Implementa o padrão Fail Fast, lançando exceção imediatamente caso a
-     * categoria não seja encontrada, evitando propagação de estados inválidos.
-     * </p>
-     *
-     * @param categoryId identificador único da categoria
-     * @return entidade Category encontrada
-     * @throws EntityNotFoundException se nenhuma categoria com o ID fornecido
-     * for encontrada
-     */
-    private Category findCategoryById(Long categoryId) { // Esse método é provisório enquanto não criei as classes service da aplicação, apenas para funcionar sem erro.
-        return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                "Categoria com ID " + categoryId + " não encontrada"
-        ));
-    }
-
-    /**
      * Converte uma entidade Category em um DTO CategoryResponse.
-     * <p>
-     * Extrai apenas os dados necessários da categoria para compor a resposta,
-     * seguindo o princípio de mínima exposição de dados.
-     * </p>
      *
      * @param category entidade Category a ser convertida
      * @return DTO CategoryResponse contendo id e nome da categoria
@@ -150,7 +125,6 @@ public class TransactionMapper {
     private CategoryResponse mapCategoryToResponse(Category category) {
         return new CategoryResponse(
                 category.getId(),
-                category.getName()
-        );
+                category.getName());
     }
 }

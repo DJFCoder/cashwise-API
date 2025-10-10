@@ -12,9 +12,9 @@ import br.com.devjf.cashwise.domain.entity.Category;
  * Mapper responsável pela conversão entre entidades Category e seus respectivos
  * DTOs.
  * <p>
- * Esta classe implementa o padrão Mapper para separar a camada de apresentação
- * (DTOs) da camada de domínio (Entidades), garantindo baixo acoplamento e alta
- * coesão. Fornece métodos para conversão individual e em lote, otimizando
+ * Esta classe implementa o padrão Mapper para separar a camada de transição de
+ * dados (DTOs) da camada de domínio (Entidades). <br>
+ * Fornece métodos para conversão individual e em lote, otimizando
  * operações com múltiplas categorias.
  * </p>
  *
@@ -30,11 +30,6 @@ public class CategoryMapper {
      * 'name', pois os demais campos (id, createdAt, updatedAt, transactions)
      * são gerenciados automaticamente pela JPA através de anotações @PrePersist
      * e @PreUpdate.
-     * </p>
-     * <p>
-     * <strong>Validações:</strong> O campo 'name' já é validado pelo Bean
-     * Validation no DTO (@NotBlank e @Size), garantindo que chegue válido neste
-     * método.
      * </p>
      *
      * @param request DTO contendo os dados da categoria a ser criada
@@ -60,8 +55,7 @@ public class CategoryMapper {
      * </p>
      * <p>
      * <strong>Nota:</strong> Não inclui informações de auditoria (createdAt,
-     * updatedAt) nem a lista de transações associadas, evitando problemas de
-     * serialização circular e exposição desnecessária de dados.
+     * updatedAt) nem a lista de transações associadas.
      * </p>
      *
      * @param entity entidade Category a ser convertida
@@ -73,8 +67,7 @@ public class CategoryMapper {
 
         return new CategoryResponse(
                 entity.getId(),
-                entity.getName()
-        );
+                entity.getName());
     }
 
     /**
@@ -86,7 +79,7 @@ public class CategoryMapper {
      * processamento funcional e imutável.
      * </p>
      * <p>
-     * <strong>Performance:</strong> Para grandes volumes de dados, considere
+     * <strong>Performance:</strong> Para grandes volumes de dados, é necessário
      * implementar paginação na camada de serviço antes de chamar este método.
      * </p>
      *
@@ -112,11 +105,11 @@ public class CategoryMapper {
      * </p>
      * <p>
      * <strong>Importante:</strong> Este método não persiste a entidade, apenas
-     * atualiza seus campos em memória. A persistência deve ser gerenciada pela
+     * atualiza seus campos em memória. A persistência é gerenciada pela
      * camada de serviço.
      * </p>
      *
-     * @param entity entidade Category existente a ser atualizada
+     * @param entity  entidade Category existente a ser atualizada
      * @param request DTO contendo os novos dados
      * @throws IllegalArgumentException se entity ou request forem null
      */
@@ -129,10 +122,6 @@ public class CategoryMapper {
 
     /**
      * Valida se o DTO de requisição não é nulo.
-     * <p>
-     * Implementa o padrão Fail Fast, lançando exceção imediatamente caso o
-     * request seja inválido, evitando propagação de estados inconsistentes.
-     * </p>
      *
      * @param request DTO a ser validado
      * @throws IllegalArgumentException se o request for null
@@ -145,10 +134,6 @@ public class CategoryMapper {
 
     /**
      * Valida se a entidade não é nula.
-     * <p>
-     * Implementa o padrão Fail Fast, garantindo que operações de conversão
-     * sejam realizadas apenas com entidades válidas.
-     * </p>
      *
      * @param entity entidade a ser validada
      * @throws IllegalArgumentException se a entidade for null
