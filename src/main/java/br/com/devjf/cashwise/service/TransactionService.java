@@ -3,26 +3,21 @@ package br.com.devjf.cashwise.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.devjf.cashwise.domain.entity.Category;
 import br.com.devjf.cashwise.domain.entity.Transaction;
 import br.com.devjf.cashwise.domain.entity.TransactionType;
-import br.com.devjf.cashwise.domain.entity.Category;
-import br.com.devjf.cashwise.domain.entity.RecurrencyType;
 import br.com.devjf.cashwise.repository.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
 public class TransactionService {
-
-    private static final int DEFAULT_RECURRENCY_OCCURRENCES = 12;
-    private static final int MONTHS_PER_QUARTER = 3;
 
     private final TransactionRepository transactionRepository;
     private final CategoryService categoryService;
@@ -38,7 +33,7 @@ public class TransactionService {
      * Aplica regras de negócio específicas:
      * - Valida se a categoria existe (já validado pelo mapper)
      * - Define data atual se não fornecida
-     * - Processa recorrência se diferente de UNICA
+     * - Lançamentos recorrentes serão processados automaticamente pelo RecurrencyJob
      * </p>
      *
      * @param transaction entidade Transaction a ser persistida
@@ -49,13 +44,7 @@ public class TransactionService {
         validateTransaction(transaction);
         setCreatedAtIfNull(transaction);
 
-        Transaction saved = transactionRepository.save(transaction);
-
-        if (isRecurrent(transaction)) {
-            processRecurrency(saved);
-        }
-
-        return saved;
+        return transactionRepository.save(transaction);
     }
 
     /**
@@ -83,17 +72,6 @@ public class TransactionService {
             return findByPeriod(startDate, endDate, pageable);
         }
         return transactionRepository.findAll(pageable);
-    }
-
-    /**
-     * Busca lançamentos recorrentes que precisam gerar novos lançamentos.
-     * Usado pelo RecurrencyJob.
-     *
-     * @return lista de lançamentos recorrentes para processamento
-     */
-    @Transactional(readOnly = true)
-    public List<Transaction> findRecurrentTransactionsToProcess() {
-        return transactionRepository.findRecurrentTransactionsToProcess();
     }
 
     /**
@@ -152,6 +130,7 @@ public class TransactionService {
      */
     private void validateTransaction(Transaction transaction) {
         validateTransactionNotNull(transaction);
+        validateType(transaction);
         validateAmount(transaction);
         validateCategory(transaction);
         validateDescription(transaction);
@@ -160,6 +139,17 @@ public class TransactionService {
     private void validateTransactionNotNull(Transaction transaction) {
         if (transaction == null) {
             throw new IllegalArgumentException("Lançamento não pode ser nulo");
+        }
+    }
+
+    private void validateType(Transaction transaction) {
+        if (transaction.getType() == null) {
+            throw new IllegalArgumentException("Tipo de lançamento é obrigatório");
+        }
+        
+        // Valida se o tipo foi convertido corretamente usando os métodos da entidade
+        if (!transaction.isRevenue() && !transaction.isExpense()) {
+            throw new IllegalArgumentException("Tipo de lançamento inválido");
         }
     }
 
@@ -191,10 +181,6 @@ public class TransactionService {
         if (transaction.getCreatedAt() == null) {
             transaction.setCreatedAt(LocalDate.now().atStartOfDay());
         }
-    }
-
-    private boolean isRecurrent(Transaction transaction) {
-        return !RecurrencyType.UNIQUE.equals(transaction.getRecurrency());
     }
 
     private Category findCategoryIfProvided(Long categoryId) {
@@ -261,59 +247,5 @@ public class TransactionService {
 
     private LocalDateTime toEndOfDay(LocalDate date) {
         return date.atTime(LocalTime.MAX);
-    }
-
-    /**
-     * Processa a criação de lançamentos recorrentes.
-     * Gera múltiplas ocorrências futuras baseadas no tipo de recorrência.
-     *
-     * @param originalTransaction lançamento original com recorrência
-     */
-    private void processRecurrency(Transaction originalTransaction) {
-        for (int i = 1; i <= DEFAULT_RECURRENCY_OCCURRENCES; i++) {
-            Transaction recurrentTransaction = createRecurrentTransaction(originalTransaction, i);
-            transactionRepository.save(recurrentTransaction);
-        }
-    }
-
-    /**
-     * Cria um lançamento recorrente baseado no original.
-     *
-     * @param original         lançamento original
-     * @param occurrenceNumber número da ocorrência
-     * @return novo lançamento recorrente
-     */
-    private Transaction createRecurrentTransaction(Transaction original, int occurrenceNumber) {
-        Transaction recurrent = new Transaction();
-        recurrent.setType(original.getType());
-        recurrent.setAmount(original.getAmount());
-        recurrent.setDescription(buildRecurrentDescription(original, occurrenceNumber));
-        recurrent.setRecurrency(original.getRecurrency());
-        recurrent.setCategory(original.getCategory());
-        recurrent.setCreatedAt(calculateNextDate(original.getCreatedAt(), original.getRecurrency(), occurrenceNumber));
-        return recurrent;
-    }
-
-    private String buildRecurrentDescription(Transaction original, int occurrenceNumber) {
-        return original.getDescription() + " (Recorrência " + occurrenceNumber + ")";
-    }
-
-    /**
-     * Calcula a próxima data de ocorrência baseada no tipo de recorrência.
-     *
-     * @param originalDate data original
-     * @param recurrency   tipo de recorrência
-     * @param occurrence   número da ocorrência
-     * @return data calculada da próxima ocorrência
-     */
-    private LocalDateTime calculateNextDate(LocalDateTime originalDate, RecurrencyType recurrency, int occurrence) {
-        return switch (recurrency) {
-            case DAILY -> originalDate.plusDays(occurrence);
-            case WEEKLY -> originalDate.plusWeeks(occurrence);
-            case MONTHLY -> originalDate.plusMonths(occurrence);
-            case QUARTERLY -> originalDate.plusMonths((long) occurrence * MONTHS_PER_QUARTER);
-            case ANNUAL -> originalDate.plusYears(occurrence);
-            default -> originalDate;
-        };
     }
 }

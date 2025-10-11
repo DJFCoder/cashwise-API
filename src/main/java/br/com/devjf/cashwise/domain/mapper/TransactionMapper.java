@@ -83,24 +83,20 @@ public class TransactionMapper {
     }
 
     /**
-     * Converte uma string em um enum TransactionType.
+     * Converte uma string em português em um enum TransactionType.
      * <p>
-     * Realiza a conversão case-insensitive, transformando a string em
-     * maiúsculas antes da conversão para garantir compatibilidade.
+     * Utiliza o método fromDescription() do enum para converter
+     * "Receita" ou "Despesa" para seus respectivos valores enum.
      * </p>
      *
-     * @param type string representando o tipo do lançamento
-     *             {
-     *             exemplo:
-     *             "REVENUE"(receita),
-     *             "EXPENSE"(despesa)
-     *             }
+     * @param type string representando o tipo do lançamento em português
+     *             (exemplo: "Receita", "Despesa")
      * @return enum TransactionType correspondente
      * @throws IllegalArgumentException se o tipo fornecido não corresponder a
-     *                                  nenhum valor do enum
+     *                                  nenhum valor válido
      */
     private TransactionType convertToTransactionType(String type) {
-        return TransactionType.valueOf(type.toUpperCase());
+        return TransactionType.fromDescription(type);
     }
 
     /**

@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Size;
 public record TransactionRequest(
         @NotBlank(message = "O tipo de lançamento é obrigatório")
         @Size(max = 20, message = "O tipo deve conter no máximo 20 caracteres")
-        @Pattern(regexp = "REVENUE|EXPENSE", message = "O tipo deve ser REVENUE ou EXPENSE")
+        @Pattern(regexp = "Receita|Despesa", message = "O tipo deve ser 'Receita' ou 'Despesa'")
         String type,
         
         @NotNull(message = "O ID da categoria é obrigatório")
