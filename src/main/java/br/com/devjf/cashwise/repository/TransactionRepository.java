@@ -3,6 +3,7 @@ package br.com.devjf.cashwise.repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -117,6 +118,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
          * Exclui lançamentos do tipo UNIQUE.
          * 
          * @return lista de lançamentos recorrentes
+         * @deprecated Use findOriginalActiveRecurrentTransactions() para o Job
          */
         @Query("SELECT t FROM Transaction t WHERE t.recurrency != 'UNIQUE'")
         List<Transaction> findRecurrentTransactionsToProcess();
@@ -191,4 +193,67 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                         "GROUP BY FUNCTION('MONTH', t.createdAt), FUNCTION('YEAR', t.createdAt) " +
                         "ORDER BY FUNCTION('MONTH', t.createdAt)")
         List<Object[]> findMonthlyEvolution(@Param("year") int year);
+
+        // ========== NOVAS QUERIES PARA CONTROLE DE RECORRÊNCIA ==========
+
+        /**
+         * Busca lançamentos originais (parent) com recorrência ativa.
+         * Usado pelo RecurrencyJob para processar automaticamente.
+         * 
+         * Critérios:
+         * - parentTransactionId IS NULL (é lançamento original)
+         * - recurrencyActive = true (está ativo)
+         * - recurrency != UNIQUE (possui recorrência)
+         * 
+         * @return lista de lançamentos originais aptos a gerar novos lançamentos
+         */
+        @Query("SELECT t FROM Transaction t WHERE " +
+                        "t.parentTransactionId IS NULL AND " +
+                        "t.recurrencyActive = true AND " +
+                        "t.recurrency != 'UNIQUE'")
+        List<Transaction> findOriginalActiveRecurrentTransactions();
+
+        /**
+         * Busca o último lançamento filho gerado a partir de um lançamento original.
+         * Usado para calcular a próxima data de recorrência.
+         * 
+         * @param parentId ID do lançamento original (parent)
+         * @return Optional com o último lançamento filho gerado
+         */
+        @Query("SELECT t FROM Transaction t WHERE " +
+                        "t.parentTransactionId = :parentId " +
+                        "ORDER BY t.createdAt DESC " +
+                        "LIMIT 1")
+        Optional<Transaction> findLastChildTransaction(@Param("parentId") Long parentId);
+
+        /**
+         * Conta quantos lançamentos filhos foram gerados a partir de um lançamento original.
+         * Útil para estatísticas e controle.
+         * 
+         * @param parentId ID do lançamento original (parent)
+         * @return quantidade de lançamentos filhos gerados
+         */
+        @Query("SELECT COUNT(t) FROM Transaction t WHERE t.parentTransactionId = :parentId")
+        Long countChildTransactions(@Param("parentId") Long parentId);
+
+        /**
+         * Busca todos os lançamentos filhos de um lançamento original.
+         * Útil para exibir histórico completo de uma recorrência.
+         * 
+         * @param parentId ID do lançamento original (parent)
+         * @return lista de todos os lançamentos filhos gerados
+         */
+        @Query("SELECT t FROM Transaction t WHERE " +
+                        "t.parentTransactionId = :parentId " +
+                        "ORDER BY t.createdAt ASC")
+        List<Transaction> findAllChildTransactions(@Param("parentId") Long parentId);
+
+        /**
+         * Verifica se um lançamento já possui lançamentos filhos gerados.
+         * Útil antes de permitir certas operações no lançamento original.
+         * 
+         * @param parentId ID do lançamento original (parent)
+         * @return true se existem filhos, false caso contrário
+         */
+        boolean existsByParentTransactionId(Long parentId);
 }
