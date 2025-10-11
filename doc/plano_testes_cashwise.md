@@ -1,4 +1,4 @@
-# 📋 Plano de Testes - CashWise
+# Plano de Testes - CashWise
 
 ## Informações do Sistema
 
@@ -35,7 +35,7 @@
 
 **Pós-condições**: Categoria "Alimentação" existe no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -56,7 +56,7 @@
 
 **Pós-condições**: Nenhuma categoria criada
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -77,7 +77,7 @@
 
 **Pós-condições**: Categoria não existe mais no sistema
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -98,7 +98,7 @@
 
 **Pós-condições**: Categoria e lançamentos permanecem intactos
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -124,7 +124,7 @@
 
 **Pós-condições**: Um lançamento no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -150,7 +150,7 @@
 
 **Pós-condições**: Múltiplos lançamentos mensais no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -171,7 +171,7 @@
 
 **Pós-condições**: Nenhum lançamento criado
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -193,7 +193,7 @@
 
 **Pós-condições**: Nenhuma alteração no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -215,7 +215,7 @@
 
 **Pós-condições**: Nenhuma alteração no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -237,7 +237,7 @@
 
 **Pós-condições**: Nenhuma alteração no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -259,7 +259,7 @@
 
 **Pós-condições**: Nenhuma alteração no banco
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
@@ -280,7 +280,7 @@
 
 **Pós-condições**: Banco inalterado
 
-**Estado**: ⬜ Aprovado / ⬜ Reprovado
+**Estado**: ✅ Aprovado / ⬜ Reprovado
 
 ---
 
