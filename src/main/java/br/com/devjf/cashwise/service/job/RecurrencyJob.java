@@ -57,7 +57,7 @@ public class RecurrencyJob {
             log.info("===== PROCESSAMENTO DE LANÇAMENTOS RECORRENTES FINALIZADO COM SUCESSO =====");
         } catch (Exception e) {
             log.error("===== ERRO DURANTE PROCESSAMENTO DE LANÇAMENTOS RECORRENTES =====", e);
-            // Em produção, considere enviar alerta/notificação aqui
+            // Em produção, enviar alerta/notificação por aqui
         }
     }
 }
