@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +18,9 @@ import br.com.devjf.cashwise.domain.dto.category.CategoryRequest;
 import br.com.devjf.cashwise.domain.dto.category.CategoryResponse;
 import br.com.devjf.cashwise.domain.entity.Category;
 import br.com.devjf.cashwise.domain.mapper.CategoryMapper;
+import br.com.devjf.cashwise.exception.BusinessException;
 import br.com.devjf.cashwise.service.CategoryService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author devjf
  */
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/categoria")
 @Slf4j
 public class CategoryController {

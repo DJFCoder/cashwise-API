@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import br.com.devjf.cashwise.domain.dto.transaction.TransactionResponse;
 import br.com.devjf.cashwise.domain.entity.Transaction;
 import br.com.devjf.cashwise.domain.mapper.TransactionMapper;
 import br.com.devjf.cashwise.service.RecurrencyService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author devjf
  */
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/recorrencia")
 @Slf4j
 public class RecurrencyController {

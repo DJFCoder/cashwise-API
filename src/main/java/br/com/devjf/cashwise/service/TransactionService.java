@@ -47,6 +47,17 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
+    /*
+     * Pesquisa um lançamento pelo ID.
+     * 
+     * @param id identificador do lançamento
+     * @return lançamento encontrado ou lança exceção se não encontrado
+    */
+    public Transaction findById(Long id) {
+        return transactionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento com ID " + id + " não encontrada"));
+    }
+
     /**
      * Exclui um lançamento pelo ID.
      *
