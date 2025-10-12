@@ -2,106 +2,111 @@
 
 **Mais controle, menos desperdício.**
 
+---
+
 ## Sumário
 
-1. [Apresentação](#apresentação)
-2. [Descrição do Projeto](#descrição-do-projeto)
-3. [Escopo do MVP](#escopo-do-mvp)
-4. [Necessidades e Regras de Negócio](#necessidades-observadas-e-regras-de-negócio)
-5. [Requisitos Funcionais](#requisitos-funcionais)
-6. [Requisitos Não Funcionais](#requisitos-não-funcionais)
-7. [Diagramas UML](#diagramas-uml)
-8. [Estrutura de Pacotes](#estrutura-de-pacotes)
+1. [Apresentação](#apresentação)  
+2. [Descrição do Projeto](#descrição-do-projeto)  
+3. [Escopo do MVP](#escopo-do-mvp)  
+4. [Observações](#observações)  
+5. [Necessidades Observadas e Regras de Negócio](#necessidades-observadas-e-regras-de-negócio)  
+6. [Requisitos Funcionais](#requisitos-funcionais)  
+7. [Requisitos Não Funcionais](#requisitos-não-funcionais)  
+8. [Diagramas UML](#diagramas-uml)  
+9. [Conclusão](#conclusão)  
 
 ---
 
-## 1. Apresentação
+## Apresentação
 
-A **Plataforma de Controle Financeiro Pessoal – CashWise** é um sistema web com:
-- **Back-end**: Java (Spring Boot) - API REST
-- **Front-end**: Bootstrap / Alpine.js / jQuery
+A **Plataforma de Controle Financeiro Pessoal – CashWise** é um sistema **web full-stack** composto por:
 
-**Objetivo**: Registrar e analisar receitas e despesas, com categorização e relatórios visuais para apoiar decisões financeiras pessoais.
+- **Back-end**: Java 17 + Spring Boot 3 – API REST  
+- **Front-end**: Bootstrap + Alpine.js + jQuery (responsivo, mobile-first)
+
+**Objetivo**: Permitir que o usuário registre receitas/despesas, categorize-as, defina recorrências e visualize **relatórios financeiros** em dashboards automáticos, sem exportação no MVP.
 
 ---
 
-## 2. Descrição do Projeto
+## Descrição do Projeto
 
-O usuário registra lançamentos (receitas/despesas) informando:
-- Valor (em Real - BRL)
-- Categoria (previamente cadastrada)
-- Recorrência (obrigatória, entre opções fixas do sistema)
+O usuário registra **lançamentos** informando:
+- Valor (em Real – BRL)
+- Categoria (pré-cadastrada)
+- Recorrência (obrigatória – 6 opções fixas)
 - Data (padrão: data atual)
 - Descrição (obrigatória)
 
-Os dados são exibidos em listagens filtráveis e em uma página de relatórios com dashboards visuais.
+Os dados são exibidos em **listagens filtráveis** e em **página de relatórios** com gráficos de saldo, evolução mensal e distribuição por categoria.
 
 ---
 
-## 3. Escopo do MVP
+## Escopo do MVP
 
-- CRUD de **Categorias** (id e nome)
-- CRUD de **Lançamentos** (Receita/Despesa) com recorrência fixa
-- Listagem de lançamentos com filtros (período, tipo, categoria) e paginação
-- Página de **Relatórios** com gráficos:
-  - Saldo no período
-  - Evolução mensal
-  - Distribuição por categoria
-
-### Observações
-- Relatórios visualizados apenas na interface web (sem exportação no MVP)
-- Moeda única: todos os valores em Real (BRL)
-- Lançamentos com recorrência diferente de `UNICA` geram automaticamente lançamentos futuros
-- Categorias são compartilhadas entre receitas e despesas (simplificação do MVP)
+| Módulo | Funcionalidades Entregues |
+|--------|---------------------------|
+| **Categorias** | CRUD completo. Exclusão **só** é permitida quando **não há lançamentos vinculados**. |
+| **Lançamentos** | Cadastro, exclusão, listagem **paginada** com **8 filtros** (período, tipo, categoria, recorrência, faixa de valor, descrição). **Edição NÃO existe no MVP**. |
+| **Recorrência** | 6 tipos fixos: `UNIQUE`, `DAILY`, `WEEKLY`, `MONTHLY`, `QUARTERLY`, `ANUAL`.<br>Job diário (01:00) gera **no máximo 2 filhos/dia** respeitando `recurrencyEndDate` e flag `ativo`. |
+| **Relatórios** | 3 consultas instantâneas: balancete, distribuição % por categoria e evolução mensal de um ano. <br>**Sem exportação no MVP**. |
 
 ---
 
-## 4. Necessidades Observadas e Regras de Negócio
+## Observações
+
+- Moeda única: **Real (BRL)**  
+- Categorias são **compartilhadas** entre receitas e despesas (simplificação do MVP)  
+- Lançamentos com recorrência ≠ `UNIQUE` geram **cópias automáticas** (filhos)  
+- **Automação**: Job Spring `@Scheduled` processa recorrências diariamente  
+- **Validações**: Bean Validation (`@Valid`) em **todos** os DTOs de entrada  
+- **Auditoria**: campos `createdAt`/`updatedAt` preenchidos automaticamente pelo JPA
+
+---
+
+## Necessidades Observadas e Regras de Negócio
 
 ### Necessidades
-- Controle unificado de receitas e despesas
-- Classificação por categorias
-- Relatórios visuais para análise rápida da situação financeira
+- Controle **unificado** de receitas e despesas  
+- Classificação por **categorias**  
+- Relatórios **visuais** para análise rápida da situação financeira  
 
 ### Regras de Negócio
-- Todo lançamento deve estar vinculado a uma categoria
-- Cada lançamento exige: tipo (receita/despesa), valor (> 0), categoria, data (padrão: hoje), recorrência e descrição
-- Recorrência é obrigatória e fixa: `UNICA`, `DIARIA`, `SEMANAL`, `MENSAL`, `TRIMESTRAL`, `ANUAL`
-- A recorrência é definida pelo sistema (não personalizável pelo usuário)
-- **Automação de Recorrência**: Quando a recorrência for diferente de `UNICA`, o sistema deve gerar automaticamente os próximos lançamentos conforme a periodicidade escolhida
-- Lançamentos não podem ser editados, apenas excluídos (regra do MVP)
-- **Exclusão de Categoria**: Uma categoria só pode ser excluída se não houver lançamentos vinculados a ela. O sistema deve validar esta regra antes de permitir a exclusão
-- Todos os valores monetários são em Real (BRL) no MVP
-- Categorias são entidades simples com apenas id e nome, utilizáveis tanto para receitas quanto para despesas (compartilhadas no MVP)
-- **Validações**: Todas as validações de negócio ocorrem entre o DTO e Controller através da anotação `@Valid`
+RN01. Todo lançamento **deve** estar vinculado a uma **categoria existente**.  
+RN02. Valor **> 0** e **≤ 9.999.999.999.999,99** (13 inteiros + 2 decimais).  
+RN03. Recorrência é **obrigatória** e **fixa** (somente valores do enum).  
+RN04. Lançamentos **não podem ser editados** – apenas **excluídos**.  
+RN05. Categoria só é removida se **nenhum** lançamento estiver associado.  
+RN06. Filhos gerados têm `recurrencyActive = false` e `parentTransactionId` apontando para o original.  
+RN07. Job **não gera mais de 2 filhos por dia** para cada original e **nunca** após `recurrencyEndDate`.
 
 ---
 
-## 5. Requisitos Funcionais
+## Requisitos Funcionais
 
 | ID | Descrição |
 |----|-----------|
-| RF01 | Cadastrar/excluir categorias (apenas id e nome). Exclusão bloqueada se houver lançamentos vinculados |
-| RF02 | Cadastrar/excluir lançamentos (receitas e despesas). Edição não permitida no MVP |
-| RF03 | Selecionar recorrência fixa no lançamento. Se diferente de `UNICA`, gerar automaticamente lançamentos futuros |
-| RF04 | Listar lançamentos com filtros (período, tipo, categoria) e paginação |
-| RF05 | Visualizar relatórios na interface web (sem exportação no MVP): Saldo no período, Evolução mensal, Distribuição por categoria |
-| RF06 | Registrar metadados de auditoria mínimos (criado_em, atualizado_em) |
-| RF07 | Validar dados de entrada usando `@Valid` nos DTOs antes de processar no Controller |
+| RF01 | CRUD de **Categorias** (id e nome). Exclusão bloqueada se houver lançamentos vinculados. |
+| RF02 | CRUD de **Lançamentos** (receitas/despesas). **Edição não permitida** no MVP. |
+| RF03 | Selecionar **recorrência fixa** no lançamento. Se ≠ `UNICA`, gerar automaticamente lançamentos futuros. |
+| RF04 | Listar lançamentos com **filtros** (período, tipo, categoria, recorrência, valor, descrição) e **paginação**. |
+| RF05 | Visualizar **relatórios web**: Saldo no período, Evolução mensal, Distribuição por categoria. **Sem exportação no MVP**. |
+| RF06 | Registrar **metadados de auditoria** (`createdAt`, `updatedAt`). |
+| RF07 | Validar dados de entrada usando **`@Valid`** nos DTOs antes de processar no Controller. |
 
 ---
 
-## 6. Requisitos Não Funcionais
+## Requisitos Não Funcionais
 
-- **Arquitetura**: Spring Boot (REST), camadas controller → dto → service → domain → repository
-- **Banco de Dados**: MySQL 8+ com Spring JPA (Hibernate), criação de tabelas a partir das entidades
-- **Validação**: Uso obrigatório de anotações `@Valid` nos DTOs para validação de entradas antes do processamento no Controller
-- **Usabilidade**: Interface responsiva (Bootstrap), mobile first; acessibilidade básica (aria-labels)
-- **Ambiente**: Aplicação rodando em localhost:8080 (back-end) e localhost:3000 (front-end)
-- **Compatibilidade**: Navegadores Chrome/Firefox/Edge atuais
-- **Separação de Responsabilidades**: Uso de DTOs para request/response, separados do modelo de domínio
-- **Automação**: Job agendado para processar lançamentos recorrentes (gerar lançamentos futuros automaticamente)
-- **Integridade Referencial**: Validação obrigatória antes de excluir categorias (verificar se há lançamentos vinculados)
+- **Arquitetura**: Spring Boot (REST) – camadas `controller → dto → service → domain → repository`  
+- **Banco**: MySQL 8+ com Spring JPA (Hibernate) – geração de tabelas via `ddl-auto=update`  
+- **Validação**: Uso **obrigatório** de `@Valid` nos DTOs para validação de entradas  
+- **Interface**: Responsiva (Bootstrap), mobile-first; acessibilidade básica (aria-labels)  
+- **Ambiente**: Localhost:8080 (back-end) e localhost:3000 (front-end)  
+- **Compatibilidade**: Chrome/Firefox/Edge atuais  
+- **DTO Pattern**: Separados do modelo de domínio – desacoplamento e segurança de dados  
+- **Automação**: Job agendado para processar lançamentos recorrentes (gerar futuros automaticamente)  
+- **Integridade**: Validação **obrigatória** antes de excluir categorias (verificar vínculos)
 
 ---
 
@@ -422,7 +427,7 @@ com.cashwise/
 
 ## Conclusão
 
-Esta documentação define o escopo do MVP da plataforma **CashWise**, um sistema de controle financeiro pessoal focado em simplicidade e usabilidade. O sistema permite gerenciar categorias, registrar lançamentos com recorrência fixa e visualizar relatórios financeiros de forma clara e objetiva.
+O MVP do CashWise entrega todas as funcionalidades essenciais de um controle financeiro pessoal, com automação de recorrências, relatórios visuais e validações robustas, mantendo simplicidade e prontidão para evolução.
 
 ### Princípios de Design
 
@@ -434,8 +439,9 @@ Esta documentação define o escopo do MVP da plataforma **CashWise**, um sistem
 
 ### Benefícios da Arquitetura
 
-A arquitetura em camadas com DTOs específicos proporciona:
-- Desacoplamento entre API e domínio
-- Validação específica para entradas da API
-- Flexibilidade para evolução do modelo de domínio sem impactar a API
-- Segurança ao expor apenas os dados necessários nas respostas
+- Desacoplamento total entre camadas – permite evoluir modelo de domínio sem quebrar contratos da API
+- Validação específica para entradas – evita inconsistências e vazamento de dados internos
+- Paginação obrigatória – impede OutOfMemory em grandes volumes
+- Job idempotente – limite de 2 filhos/dia e uso da última data gerada como base elimina duplicidades
+- Auditoria automática – rastreabilidade sem código extra
+- Prontidão para escalar – API stateless, pronta para containerização e CI/CD
