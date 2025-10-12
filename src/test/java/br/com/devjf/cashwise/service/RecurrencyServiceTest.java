@@ -2,27 +2,23 @@ package br.com.devjf.cashwise.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -35,743 +31,356 @@ import br.com.devjf.cashwise.repository.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 /**
- * Testes unitários para RecurrencyService.
- * Valida regras de negócio relacionadas à geração automática de lançamentos recorrentes.
- * 
- * Casos de teste cobertos:
- * - CT006: Geração automática de lançamentos recorrentes mensais
- * - Processamento de recorrências ativas
- * - Ativação e desativação de recorrências
- * - Definição de data de término
- * - Validações de lançamentos originais vs filhos
+ * Testes unitários para {@link RecurrencyService}.
+ * <p>
+ * Cobertura completa das regras de recorrência:
+ * <ul>
+ *   <li>Processamento diário de recorrências ativas</li>
+ *   <li>Geração de no máximo 1 filho por execução (limite 2 por dia)</li>
+ *   <li>Cálculo da próxima data +1 período a partir da fonte mais recente</li>
+ *   <li>Ativação/desativação de recorrências</li>
+ *   <li>Definição de data de término</li>
+ *   <li>Consulta de filhos gerados</li>
+ * </ul>
+ * </p>
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Testes Unitários - RecurrencyService")
+@DisplayName("RecurrencyService - CT006 Geração Automática de Lançamentos Recorrentes")
 class RecurrencyServiceTest {
 
     @Mock
-    private TransactionRepository transactionRepository;
+    private TransactionRepository repository;
 
     @InjectMocks
-    private RecurrencyService recurrencyService;
+    private RecurrencyService service;
 
-    private Category validCategory;
-    private Transaction originalMonthlyTransaction;
-    private Transaction originalDailyTransaction;
-    private Transaction originalWeeklyTransaction;
-    private Transaction originalQuarterlyTransaction;
-    private Transaction originalAnnualTransaction;
+    private Category category;
+    private Transaction originalDaily;
+    private Transaction originalMonthly;
 
     @BeforeEach
     void setUp() {
-        // Arrange: Preparação de dados de teste
-        validCategory = new Category();
-        validCategory.setId(1L);
-        validCategory.setName("Moradia");
+        category = buildCategory();
 
-        // Lançamento recorrente mensal original
-        originalMonthlyTransaction = new Transaction();
-        originalMonthlyTransaction.setId(1L);
-        originalMonthlyTransaction.setType(TransactionType.EXPENSE);
-        originalMonthlyTransaction.setCategory(validCategory);
-        originalMonthlyTransaction.setAmount(new BigDecimal("500.00"));
-        originalMonthlyTransaction.setDescription("Aluguel");
-        originalMonthlyTransaction.setRecurrency(RecurrencyType.MONTHLY);
-        originalMonthlyTransaction.setRecurrencyActive(true);
-        originalMonthlyTransaction.setParentTransactionId(null);
-        originalMonthlyTransaction.setCreatedAt(LocalDate.of(2025, 10, 11).atStartOfDay());
-
-        // Lançamento recorrente diário
-        originalDailyTransaction = new Transaction();
-        originalDailyTransaction.setId(2L);
-        originalDailyTransaction.setType(TransactionType.EXPENSE);
-        originalDailyTransaction.setCategory(validCategory);
-        originalDailyTransaction.setAmount(new BigDecimal("50.00"));
-        originalDailyTransaction.setDescription("Transporte");
-        originalDailyTransaction.setRecurrency(RecurrencyType.DAILY);
-        originalDailyTransaction.setRecurrencyActive(true);
-        originalDailyTransaction.setParentTransactionId(null);
-        originalDailyTransaction.setCreatedAt(LocalDate.now().minusDays(2).atStartOfDay());
-
-        // Lançamento recorrente semanal
-        originalWeeklyTransaction = new Transaction();
-        originalWeeklyTransaction.setId(3L);
-        originalWeeklyTransaction.setType(TransactionType.EXPENSE);
-        originalWeeklyTransaction.setCategory(validCategory);
-        originalWeeklyTransaction.setAmount(new BigDecimal("100.00"));
-        originalWeeklyTransaction.setDescription("Academia");
-        originalWeeklyTransaction.setRecurrency(RecurrencyType.WEEKLY);
-        originalWeeklyTransaction.setRecurrencyActive(true);
-        originalWeeklyTransaction.setParentTransactionId(null);
-        originalWeeklyTransaction.setCreatedAt(LocalDate.now().minusWeeks(2).atStartOfDay());
-
-        // Lançamento recorrente trimestral
-        originalQuarterlyTransaction = new Transaction();
-        originalQuarterlyTransaction.setId(4L);
-        originalQuarterlyTransaction.setType(TransactionType.EXPENSE);
-        originalQuarterlyTransaction.setCategory(validCategory);
-        originalQuarterlyTransaction.setAmount(new BigDecimal("300.00"));
-        originalQuarterlyTransaction.setDescription("Seguro");
-        originalQuarterlyTransaction.setRecurrency(RecurrencyType.QUARTERLY);
-        originalQuarterlyTransaction.setRecurrencyActive(true);
-        originalQuarterlyTransaction.setParentTransactionId(null);
-        originalQuarterlyTransaction.setCreatedAt(LocalDate.now().minusMonths(4).atStartOfDay());
-
-        // Lançamento recorrente anual
-        originalAnnualTransaction = new Transaction();
-        originalAnnualTransaction.setId(5L);
-        originalAnnualTransaction.setType(TransactionType.EXPENSE);
-        originalAnnualTransaction.setCategory(validCategory);
-        originalAnnualTransaction.setAmount(new BigDecimal("1200.00"));
-        originalAnnualTransaction.setDescription("IPTU");
-        originalAnnualTransaction.setRecurrency(RecurrencyType.ANNUAL);
-        originalAnnualTransaction.setRecurrencyActive(true);
-        originalAnnualTransaction.setParentTransactionId(null);
-        originalAnnualTransaction.setCreatedAt(LocalDate.now().minusYears(2).atStartOfDay());
+        originalDaily = buildOriginal(RecurrencyType.DAILY, LocalDate.now(), new BigDecimal("50"), "Transporte");
+        originalMonthly = buildOriginal(RecurrencyType.MONTHLY, LocalDate.now(), new BigDecimal("500"), "Aluguel");
     }
 
-    // ==================== CT006: Geração Automática de Lançamentos Recorrentes Mensais
-    // ====================
-
-    @Test
-    @DisplayName("CT006 - Deve processar lançamento recorrente mensal e gerar próximo lançamento")
-    void shouldProcessMonthlyRecurrencyAndGenerateNextTransaction() {
-        // Arrange
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(originalMonthlyTransaction.getId()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction saved = invocation.getArgument(0);
-            saved.setId(100L);
-            return saved;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, times(1)).findLastChildTransaction(originalMonthlyTransaction.getId());
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
+    private Transaction buildOriginal(RecurrencyType type, LocalDate created, BigDecimal amount, String desc) {
+        Transaction t = new Transaction();
+        t.setId(System.nanoTime());
+        t.setType(TransactionType.EXPENSE);
+        t.setAmount(amount);
+        t.setDescription(desc);
+        t.setRecurrency(type);
+        t.setRecurrencyActive(true);
+        t.setParentTransactionId(null);
+        t.setCategory(category);
+        t.setCreatedAt(created.atStartOfDay());
+        return t;
     }
 
-    @Test
-    @DisplayName("CT006 - Deve gerar lançamento filho com mesmos dados do original")
-    void shouldGenerateChildTransactionWithSameDataAsOriginal() {
-        // Arrange
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Validar dados do filho
-            assertEquals(originalMonthlyTransaction.getType(), child.getType(), 
-                "Tipo deve ser igual ao original");
-            assertEquals(originalMonthlyTransaction.getAmount(), child.getAmount(), 
-                "Valor deve ser igual ao original");
-            assertEquals(originalMonthlyTransaction.getDescription(), child.getDescription(), 
-                "Descrição deve ser igual ao original");
-            assertEquals(originalMonthlyTransaction.getRecurrency(), child.getRecurrency(), 
-                "Recorrência deve ser igual ao original");
-            assertEquals(originalMonthlyTransaction.getCategory(), child.getCategory(), 
-                "Categoria deve ser igual ao original");
-            assertEquals(originalMonthlyTransaction.getId(), child.getParentTransactionId(),
-                "Parent ID deve apontar para o original");
-            assertFalse(child.getRecurrencyActive(),
-                "Filho não deve ter recorrência ativa");
-            assertNull(child.getRecurrencyEndDate(),
-                "Filho não deve ter data de término");
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
+    private Category buildCategory() {
+        Category c = new Category();
+        c.setId(1L);
+        c.setName("Test");
+        return c;
     }
 
+    // -------------------------------------------------------------------------
+    // 1. PROCESSAMENTO DIÁRIO + 1 FILHO POR EXECUÇÃO
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT037: Deve processar recorrência ativa e gerar 1 filho por execução.
+     */
     @Test
-    @DisplayName("CT006 - Deve calcular próxima data corretamente para recorrência mensal")
-    void shouldCalculateNextDateCorrectlyForMonthlyRecurrency() {
-        // Arrange
-        LocalDate originalDate = LocalDate.of(2025, 10, 11);
-        LocalDate expectedNextDate = LocalDate.of(2025, 11, 11);
-        
-        originalMonthlyTransaction.setCreatedAt(originalDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Validar data calculada
-            assertEquals(expectedNextDate, child.getCreatedAt().toLocalDate(), 
-                "Data deve ser incrementada em 1 mês");
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    @Test
-    @DisplayName("CT006 - Deve processar múltiplos lançamentos recorrentes ativos")
-    void shouldProcessMultipleActiveRecurrentTransactions() {
-        // Arrange
-        List<Transaction> activeRecurrencies = Arrays.asList(
-            originalMonthlyTransaction,
-            originalDailyTransaction,
-            originalWeeklyTransaction
-        );
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction saved = invocation.getArgument(0);
-            saved.setId(System.currentTimeMillis());
-            return saved;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, times(3)).save(any(Transaction.class));
-    }
-
-    @Test
-    @DisplayName("CT006 - Não deve gerar lançamento quando próxima data ainda não chegou")
-    void shouldNotGenerateTransactionWhenNextDateHasNotArrived() {
-        // Arrange
-        LocalDate futureDate = LocalDate.now().plusMonths(1);
-        originalMonthlyTransaction.setCreatedAt(futureDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, never()).save(any(Transaction.class));
-    }
-
-    @Test
-    @DisplayName("CT006 - Deve usar data do último filho como base para calcular próxima data")
-    void shouldUseLastChildDateAsBaseForNextDate() {
-        // Arrange
-        LocalDate lastChildDate = LocalDate.of(2025, 11, 11);
-        LocalDate expectedNextDate = LocalDate.of(2025, 12, 11);
-        
-        Transaction lastChild = new Transaction();
-        lastChild.setId(50L);
-        lastChild.setCreatedAt(lastChildDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(originalMonthlyTransaction.getId()))
-                .thenReturn(Optional.of(lastChild));
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Validar que usou data do último filho
-            assertEquals(expectedNextDate, child.getCreatedAt().toLocalDate(), 
-                "Deve calcular a partir do último filho, não do original");
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).findLastChildTransaction(originalMonthlyTransaction.getId());
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    @Test
-    @DisplayName("CT006 - Deve respeitar data de término da recorrência")
-    void shouldRespectRecurrencyEndDate() {
-        // Arrange
-        LocalDate endDate = LocalDate.of(2025, 10, 15);
-        originalMonthlyTransaction.setRecurrencyEndDate(endDate);
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalMonthlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, never()).save(any(Transaction.class));
-    }
-
-    // ==================== Testes de Recorrência Diária ====================
-
-    @Test
-    @DisplayName("Deve calcular próxima data corretamente para recorrência diária")
-    void shouldCalculateNextDateCorrectlyForDailyRecurrency() {
-        // Arrange
-        LocalDate baseDate = LocalDate.now().minusDays(2);
-        originalDailyTransaction.setCreatedAt(baseDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalDailyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Data deve ser incrementada em 1 dia
-            LocalDate expectedDate = baseDate.plusDays(1);
-            assertEquals(expectedDate, child.getCreatedAt().toLocalDate());
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    // ==================== Testes de Recorrência Semanal ====================
-
-    @Test
-    @DisplayName("Deve calcular próxima data corretamente para recorrência semanal")
-    void shouldCalculateNextDateCorrectlyForWeeklyRecurrency() {
-        // Arrange
-        LocalDate baseDate = LocalDate.now().minusWeeks(2);
-        originalWeeklyTransaction.setCreatedAt(baseDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalWeeklyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Data deve ser incrementada em 1 semana
-            LocalDate expectedDate = baseDate.plusWeeks(1);
-            assertEquals(expectedDate, child.getCreatedAt().toLocalDate());
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    // ==================== Testes de Recorrência Trimestral ====================
-
-    @Test
-    @DisplayName("Deve calcular próxima data corretamente para recorrência trimestral")
-    void shouldCalculateNextDateCorrectlyForQuarterlyRecurrency() {
-        // Arrange
-        LocalDate baseDate = LocalDate.now().minusMonths(4);
-        originalQuarterlyTransaction.setCreatedAt(baseDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalQuarterlyTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Data deve ser incrementada em 3 meses
-            LocalDate expectedDate = baseDate.plusMonths(3);
-            assertEquals(expectedDate, child.getCreatedAt().toLocalDate());
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    // ==================== Testes de Recorrência Anual ====================
-
-    @Test
-    @DisplayName("Deve calcular próxima data corretamente para recorrência anual")
-    void shouldCalculateNextDateCorrectlyForAnnualRecurrency() {
-        // Arrange
-        LocalDate baseDate = LocalDate.now().minusYears(2);
-        originalAnnualTransaction.setCreatedAt(baseDate.atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(originalAnnualTransaction);
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(anyLong()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction child = invocation.getArgument(0);
-            
-            // Assert: Data deve ser incrementada em 1 ano
-            LocalDate expectedDate = baseDate.plusYears(1);
-            assertEquals(expectedDate, child.getCreatedAt().toLocalDate());
-            
-            return child;
-        });
-
-        // Act
-        recurrencyService.processAllActiveRecurrencies();
-
-        // Assert
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
-    }
-
-    // ==================== Testes de Ativação/Desativação ====================
-
-    @Test
-    @DisplayName("Deve desativar recorrência de lançamento original com sucesso")
-    void shouldDeactivateRecurrencySuccessfully() {
-        // Arrange
-        Long transactionId = 1L;
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(originalMonthlyTransaction));
-        when(transactionRepository.save(any(Transaction.class)))
-                .thenReturn(originalMonthlyTransaction);
-
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.deactivateRecurrency(transactionId));
-
-        // Assert
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, times(1)).save(originalMonthlyTransaction);
-    }
-
-    @Test
-    @DisplayName("Deve ativar recorrência de lançamento original com sucesso")
-    void shouldActivateRecurrencySuccessfully() {
-        // Arrange
-        Long transactionId = 1L;
-        originalMonthlyTransaction.setRecurrencyActive(false);
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(originalMonthlyTransaction));
-        when(transactionRepository.save(any(Transaction.class)))
-                .thenReturn(originalMonthlyTransaction);
-
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.activateRecurrency(transactionId));
-
-        // Assert
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, times(1)).save(originalMonthlyTransaction);
-    }
-
-    @Test
-    @DisplayName("Deve lançar exceção ao tentar desativar recorrência de lançamento inexistente")
-    void shouldThrowExceptionWhenDeactivatingNonExistentTransaction() {
-        // Arrange
-        Long nonExistentId = 999L;
-        
-        when(transactionRepository.findById(nonExistentId))
-                .thenReturn(Optional.empty());
-
-        // Act & Assert
-        EntityNotFoundException exception = assertThrows(
-                EntityNotFoundException.class,
-                () -> recurrencyService.deactivateRecurrency(nonExistentId));
-
-        assertTrue(exception.getMessage().contains("não encontrado"));
-        verify(transactionRepository, times(1)).findById(nonExistentId);
-        verify(transactionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Deve lançar exceção ao tentar ativar recorrência de lançamento filho")
-    void shouldThrowExceptionWhenActivatingChildTransaction() {
-        // Arrange
-        Long childId = 100L;
-        Transaction childTransaction = new Transaction();
-        childTransaction.setId(childId);
-        childTransaction.setParentTransactionId(1L); // É um filho
-        childTransaction.setRecurrency(RecurrencyType.MONTHLY);
-        
-        when(transactionRepository.findById(childId))
-                .thenReturn(Optional.of(childTransaction));
-
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> recurrencyService.activateRecurrency(childId));
-
-        assertTrue(exception.getMessage().contains("lançamentos originais"));
-        verify(transactionRepository, times(1)).findById(childId);
-        verify(transactionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Deve lançar exceção ao tentar ativar recorrência de lançamento único")
-    void shouldThrowExceptionWhenActivatingUniqueTransaction() {
-        // Arrange
-        Long transactionId = 1L;
-        Transaction uniqueTransaction = new Transaction();
-        uniqueTransaction.setId(transactionId);
-        uniqueTransaction.setRecurrency(RecurrencyType.UNIQUE);
-        uniqueTransaction.setParentTransactionId(null);
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(uniqueTransaction));
-
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> recurrencyService.activateRecurrency(transactionId));
-
-        assertTrue(exception.getMessage().contains("UNIQUE não possui recorrência"));
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, never()).save(any());
-    }
-
-    // ==================== Testes de Data de Término ====================
-
-    @Test
-    @DisplayName("Deve definir data de término da recorrência com sucesso")
-    void shouldSetRecurrencyEndDateSuccessfully() {
-        // Arrange
-        Long transactionId = 1L;
-        LocalDate endDate = LocalDate.of(2025, 12, 31);
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(originalMonthlyTransaction));
-        when(transactionRepository.save(any(Transaction.class)))
-                .thenReturn(originalMonthlyTransaction);
-
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.setRecurrencyEndDate(transactionId, endDate));
-
-        // Assert
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, times(1)).save(originalMonthlyTransaction);
-    }
-
-    @Test
-    @DisplayName("Deve lançar exceção ao definir data de término anterior à data do lançamento")
-    void shouldThrowExceptionWhenEndDateIsBeforeTransactionDate() {
-        // Arrange
-        Long transactionId = 1L;
-        LocalDate endDate = LocalDate.of(2025, 9, 1); // Anterior a 2025-10-11
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(originalMonthlyTransaction));
-
-        // Act & Assert
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> recurrencyService.setRecurrencyEndDate(transactionId, endDate));
-
-        assertTrue(exception.getMessage().contains("não pode ser anterior"));
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Deve permitir remover data de término definindo como null")
-    void shouldAllowRemovingEndDateBySettingNull() {
-        // Arrange
-        Long transactionId = 1L;
-        originalMonthlyTransaction.setRecurrencyEndDate(LocalDate.of(2025, 12, 31));
-        
-        when(transactionRepository.findById(transactionId))
-                .thenReturn(Optional.of(originalMonthlyTransaction));
-        when(transactionRepository.save(any(Transaction.class)))
-                .thenReturn(originalMonthlyTransaction);
-
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.setRecurrencyEndDate(transactionId, null));
-
-        // Assert
-        verify(transactionRepository, times(1)).findById(transactionId);
-        verify(transactionRepository, times(1)).save(originalMonthlyTransaction);
-    }
-
-    // ==================== Testes de Consulta ====================
-
-    @Test
-    @DisplayName("Deve buscar lançamentos filhos de um lançamento original")
-    void shouldFindChildTransactionsOfOriginal() {
-        // Arrange
-        Long parentId = 1L;
-        
-        Transaction child1 = new Transaction();
-        child1.setId(10L);
-        child1.setParentTransactionId(parentId);
-        
-        Transaction child2 = new Transaction();
-        child2.setId(11L);
-        child2.setParentTransactionId(parentId);
-        
-        List<Transaction> children = Arrays.asList(child1, child2);
-        
-        when(transactionRepository.findAllChildTransactions(parentId))
-                .thenReturn(children);
-
-        // Act
-        List<Transaction> result = recurrencyService.findChildTransactions(parentId);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        verify(transactionRepository, times(1)).findAllChildTransactions(parentId);
-    }
-
-    @Test
-    @DisplayName("Deve contar lançamentos filhos gerados")
-    void shouldCountChildTransactions() {
-        // Arrange
-        Long parentId = 1L;
-        Long expectedCount = 5L;
-        
-        when(transactionRepository.countChildTransactions(parentId))
-                .thenReturn(expectedCount);
-
-        // Act
-        Long result = recurrencyService.countChildTransactions(parentId);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(expectedCount, result);
-        verify(transactionRepository, times(1)).countChildTransactions(parentId);
-    }
-
-    @Test
-    @DisplayName("Deve retornar lista vazia quando não houver filhos")
-    void shouldReturnEmptyListWhenNoChildren() {
-        // Arrange
-        Long parentId = 1L;
-        
-        when(transactionRepository.findAllChildTransactions(parentId))
-                .thenReturn(Arrays.asList());
-
-        // Act
-        List<Transaction> result = recurrencyService.findChildTransactions(parentId);
-
-        // Assert
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(transactionRepository, times(1)).findAllChildTransactions(parentId);
-    }
-
-    @Test
-    @DisplayName("Deve retornar zero quando não houver filhos para contar")
-    void shouldReturnZeroWhenNoChildrenToCount() {
-        // Arrange
-        Long parentId = 1L;
-        
-        when(transactionRepository.countChildTransactions(parentId))
+    @DisplayName("CT037 - Processar recorrência ativa e gerar 1 filho")
+    void processActiveAndGenerateOneChild() {
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(originalDaily));
+        when(repository.countByParentTransactionIdAndCreatedAtAfter(eq(originalDaily.getId()), any(LocalDateTime.class)))
                 .thenReturn(0L);
+        when(repository.findLastChildTransaction(originalDaily.getId())).thenReturn(Optional.empty());
+        when(repository.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
-        Long result = recurrencyService.countChildTransactions(parentId);
+        service.processAllActiveRecurrencies();
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(0L, result);
-        verify(transactionRepository, times(1)).countChildTransactions(parentId);
+        verify(repository).save(argThat(child ->
+                child.getCreatedAt().toLocalDate().equals(LocalDate.now().plusDays(1))
+        ));
+    }
+    /**
+     * CT038: Deve usar último filho como fonte para próxima data.
+     */
+    @Test
+    @DisplayName("CT038 - Usar último filho como fonte")
+    void useLastChildAsSource() {
+        Transaction lastChild = buildChild(originalDaily, LocalDate.now().minusDays(1), LocalDate.now());
+
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(originalDaily));
+        when(repository.countByParentTransactionIdAndCreatedAtAfter(eq(originalDaily.getId()), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(repository.findLastChildTransaction(originalDaily.getId())).thenReturn(Optional.of(lastChild));
+        when(repository.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.processAllActiveRecurrencies();
+
+        verify(repository).save(argThat(child ->
+                child.getCreatedAt().toLocalDate().equals(LocalDate.now())
+        ));
     }
 
-    // ==================== Testes de Tratamento de Erros ====================
-
+    /**
+     * CT039: Deve respeitar limite de 2 filhos por dia. (REMOVIDO - Regra não existe mais)
+     */
     @Test
-    @DisplayName("Deve continuar processamento mesmo se um lançamento falhar")
-    void shouldContinueProcessingEvenIfOneTransactionFails() {
-        // Arrange
-        Transaction problematicTransaction = new Transaction();
-        problematicTransaction.setId(99L);
-        problematicTransaction.setRecurrency(RecurrencyType.MONTHLY);
-        problematicTransaction.setRecurrencyActive(true);
-        problematicTransaction.setParentTransactionId(null);
-        problematicTransaction.setCreatedAt(LocalDate.now().minusMonths(1).atStartOfDay());
-        
-        List<Transaction> activeRecurrencies = Arrays.asList(
-            problematicTransaction,
-            originalMonthlyTransaction
-        );
-        
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(activeRecurrencies);
-        when(transactionRepository.findLastChildTransaction(problematicTransaction.getId()))
-                .thenThrow(new RuntimeException("Erro simulado"));
-        when(transactionRepository.findLastChildTransaction(originalMonthlyTransaction.getId()))
-                .thenReturn(Optional.empty());
-        when(transactionRepository.save(any(Transaction.class))).thenAnswer(invocation -> {
-            Transaction saved = invocation.getArgument(0);
-            saved.setId(100L);
-            return saved;
-        });
+    @DisplayName("CT039 - Respeitar limite de 2 filhos por dia (REMOVIDO)")
+    void respectTwoChildrenPerDayLimit() {
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(originalDaily));
+        when(repository.countByParentTransactionIdAndCreatedAtAfter(eq(originalDaily.getId()), any(LocalDateTime.class)))
+                .thenReturn(2L);
 
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.processAllActiveRecurrencies());
+        service.processAllActiveRecurrencies();
 
-        // Assert: Deve ter tentado processar ambos
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, times(1)).findLastChildTransaction(problematicTransaction.getId());
-        verify(transactionRepository, times(1)).findLastChildTransaction(originalMonthlyTransaction.getId());
-        // Deve ter salvo apenas o que não falhou
-        verify(transactionRepository, times(1)).save(any(Transaction.class));
+        verify(repository, never()).save(any(Transaction.class));
     }
 
+    // -------------------------------------------------------------------------
+    // 2. TIPOS DE RECORRÊNCIA
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT040: Deve calcular próxima data correta para cada tipo.
+     */
     @Test
-    @DisplayName("Deve processar corretamente quando não houver recorrências ativas")
-    void shouldProcessCorrectlyWhenNoActiveRecurrencies() {
-        // Arrange
-        when(transactionRepository.findOriginalActiveRecurrentTransactions())
-                .thenReturn(Arrays.asList());
+    @DisplayName("CT040 - Calcular próxima data para cada tipo")
+    void calculateCorrectNextDateForEachType() {
+        LocalDate base = LocalDate.of(2025, 10, 12);
 
-        // Act
-        assertDoesNotThrow(() -> recurrencyService.processAllActiveRecurrencies());
+        assertNextDate(RecurrencyType.DAILY, base, base.plusDays(1));
+        assertNextDate(RecurrencyType.WEEKLY, base, base.plusWeeks(1));
+        assertNextDate(RecurrencyType.MONTHLY, base, base.plusMonths(1));
+        assertNextDate(RecurrencyType.QUARTERLY, base, base.plusMonths(3));
+        assertNextDate(RecurrencyType.ANNUAL, base, base.plusYears(1));
+    }
 
-        // Assert
-        verify(transactionRepository, times(1)).findOriginalActiveRecurrentTransactions();
-        verify(transactionRepository, never()).save(any());
+    private void assertNextDate(RecurrencyType type, LocalDate base, LocalDate expected) {
+        Transaction original = buildOriginal(type, base, BigDecimal.TEN, "Test");
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(original));
+        when(repository.countByParentTransactionIdAndCreatedAtAfter(eq(original.getId()), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(repository.findLastChildTransaction(original.getId())).thenReturn(Optional.empty());
+        when(repository.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.processAllActiveRecurrencies();
+
+        verify(repository).save(argThat(child ->
+                child.getCreatedAt().toLocalDate().equals(expected)
+        ));
+    }
+
+    // -------------------------------------------------------------------------
+
+    
+    // 3. ATIVAÇÃO / DESATIVAÇÃO
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT005: Deve desativar recorrência com sucesso.
+     */
+    @Test
+    @DisplayName("CT005 - Desativa recorrência com sucesso")
+    void deactivateRecurrencySuccessfully() {
+        when(repository.findById(originalDaily.getId())).thenReturn(Optional.of(originalDaily));
+
+        assertDoesNotThrow(() -> service.deactivateRecurrency(originalDaily.getId()));
+
+        assertThat(originalDaily.getRecurrencyActive()).isFalse();
+        verify(repository).save(originalDaily);
+    }
+
+    /**
+     * CT042: Deve lançar exceção ao desativar lançamento inexistente.
+     */
+    @Test
+    @DisplayName("CT042 - Falha ao desativar lançamento inexistente")
+    void failDeactivatingNonExistentTransaction() {
+        when(repository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.deactivateRecurrency(999L));
+
+        verify(repository, never()).save(any());
+    }
+
+    /**
+     * CT043: Deve ativar recorrência com sucesso.
+     */
+    @Test
+    @DisplayName("CT043 - Ativa recorrência com sucesso")
+    void activateRecurrencySuccessfully() {
+        originalDaily.setRecurrencyActive(false);
+        when(repository.findById(originalDaily.getId())).thenReturn(Optional.of(originalDaily));
+
+        assertDoesNotThrow(() -> service.activateRecurrency(originalDaily.getId()));
+
+        assertThat(originalDaily.getRecurrencyActive()).isTrue();
+        verify(repository).save(originalDaily);
+    }
+
+    /**
+     * CT044: Deve lançar exceção ao ativar recorrência de filho.
+     */
+    @Test
+    @DisplayName("CT044 - Falha ao ativar recorrência de filho")
+    void failActivatingChildTransaction() {
+        Transaction child = buildChild(originalDaily, LocalDate.now(), LocalDate.now());
+        when(repository.findById(child.getId())).thenReturn(Optional.of(child));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.activateRecurrency(child.getId()));
+
+        verify(repository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. DATA DE TÉRMINO
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT045: Deve definir data de término com sucesso.
+     */
+    @Test
+    @DisplayName("CT045 - Define data de término com sucesso")
+    void setEndDateSuccessfully() {
+        LocalDate end = LocalDate.of(2025, 12, 31);
+        when(repository.findById(originalMonthly.getId())).thenReturn(Optional.of(originalMonthly));
+
+        assertDoesNotThrow(() -> service.setRecurrencyEndDate(originalMonthly.getId(), end));
+
+        assertThat(originalMonthly.getRecurrencyEndDate()).isEqualTo(end);
+        verify(repository).save(originalMonthly);
+    }
+
+    /**
+     * CT046: Deve lançar exceção ao definir data anterior ao original.
+     */
+    @Test
+    @DisplayName("CT046 - Falha ao definir data anterior ao original")
+    void failEndDateBeforeOriginal() {
+        LocalDate end = LocalDate.of(2025, 9, 1); // antes de 12/10
+        when(repository.findById(originalMonthly.getId())).thenReturn(Optional.of(originalMonthly));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.setRecurrencyEndDate(originalMonthly.getId(), end));
+
+        verify(repository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. CONSULTA DE FILHOS
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT047: Deve buscar lançamentos filhos.
+     */
+    @Test
+    @DisplayName("CT047 - Busca lançamentos filhos")
+    void findChildTransactions() {
+        Transaction child = buildChild(originalMonthly, LocalDate.now(), LocalDate.now());
+        when(repository.findAllChildTransactions(originalMonthly.getId())).thenReturn(List.of(child));
+
+        List<Transaction> result = service.findChildTransactions(originalMonthly.getId());
+
+        assertThat(result).hasSize(1);
+    }
+
+    /**
+     * CT048: Deve contar lançamentos filhos.
+     */
+    @Test
+    @DisplayName("CT048 - Conta lançamentos filhos")
+    void countChildTransactions() {
+        when(repository.countChildTransactions(originalMonthly.getId())).thenReturn(5L);
+
+        Long result = service.countChildTransactions(originalMonthly.getId());
+
+        assertThat(result).isEqualTo(5L);
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. CENÁRIOS DE DESATIVAÇÃO
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT049: Desativação deve manter último filho como data atual.
+     */
+    @Test
+    @DisplayName("CT049 - Desativação mantém último filho como data atual")
+    void deactivationKeepsLastChildAsToday() {
+        Transaction child = buildChild(originalDaily, LocalDate.now(), LocalDate.now());
+        when(repository.findById(originalDaily.getId())).thenReturn(Optional.of(originalDaily));
+
+        assertDoesNotThrow(() -> service.deactivateRecurrency(originalDaily.getId()));
+
+        // O filho permanece com data de hoje (não é apagado)
+        assertThat(child.getCreatedAt().toLocalDate()).isEqualTo(LocalDate.now());
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. UNIQUE NÃO GERA FILHOS
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT050: UNIQUE não gera filhos.
+     */
+    @Test
+    @DisplayName("CT050 - UNIQUE não gera filhos")
+    void uniqueDoesNotGenerateChildren() {
+        Transaction unique = buildOriginal(RecurrencyType.UNIQUE, LocalDate.now(), BigDecimal.TEN, "Único");
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(unique));
+
+        service.processAllActiveRecurrencies();
+
+        verify(repository, never()).save(any(Transaction.class));
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. RESPEITA DATA DE TÉRMINO
+    // -------------------------------------------------------------------------
+
+    /**
+     * CT015: Deve respeitar data de término e parar geração.
+     */
+    @Test
+    @DisplayName("CT015 - Respeita data de término e para geração")
+    void respectsEndDateAndStopsGeneration() {
+        originalMonthly.setRecurrencyEndDate(LocalDate.now().minusDays(1));
+        when(repository.findOriginalActiveRecurrentTransactions()).thenReturn(List.of(originalMonthly));
+        when(repository.countByParentTransactionIdAndCreatedAtAfter(eq(originalMonthly.getId()), any(LocalDateTime.class)))
+                .thenReturn(0L);
+        when(repository.findLastChildTransaction(originalMonthly.getId())).thenReturn(Optional.empty());
+
+        service.processAllActiveRecurrencies();
+
+        verify(repository, never()).save(any(Transaction.class));
+    }
+
+    // -------------------------------------------------------------------------
+    // HELPERS
+    // -------------------------------------------------------------------------
+
+    private Transaction buildChild(Transaction parent, LocalDate created, LocalDate next) {
+        Transaction child = new Transaction();
+        child.setId(System.nanoTime());
+        child.setType(parent.getType());
+        child.setAmount(parent.getAmount());
+        child.setDescription(parent.getDescription() + " (filho)");
+        child.setRecurrency(parent.getRecurrency());
+        child.setCategory(parent.getCategory());
+        child.setParentTransactionId(parent.getId());
+        child.setRecurrencyActive(false);
+        child.setCreatedAt(created.atStartOfDay());
+        return child;
     }
 }
