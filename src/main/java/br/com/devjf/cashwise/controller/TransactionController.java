@@ -36,10 +36,11 @@ import lombok.extern.slf4j.Slf4j;
  * de dados.
  * </p>
  * <p>
- * Endpoints disponíveis: - POST /api/lancamento - Cadastrar novo lançamento -
- * GET /api/lancamento/listar - Listar lançamentos com filtros e paginação - GET
- * /api/lancamento/{id} - Buscar lançamento por ID - DELETE /api/lancamento/{id}
- * - Excluir lançamento
+ * Endpoints disponíveis:
+ * - POST /api/lancamento - Cadastrar novo lançamento
+ * - GET /api/lancamento/listar - Listar lançamentos com filtros e paginação
+ * - GET /api/lancamento/{id} - Buscar lançamento por ID
+ * - DELETE /api/lancamento/{id} - Excluir lançamento
  * </p>
  * <p>
  * Filtros suportados: - startDate: Data inicial do período - endDate: Data
@@ -103,19 +104,19 @@ public class TransactionController {
      * de ordenação (padrão: createdAt,desc)
      * </p>
      * <p>
-     * Exemplos de uso: 
+     * Exemplos de uso:
      * - GET /api/lancamento/listar?startDate=2025-01-01&endDate=2025-01-31
-     * - GET /api/lancamento/listar?type=EXPENSE&categoryId=1 
+     * - GET /api/lancamento/listar?type=EXPENSE&categoryId=1
      * - GET /api/lancamento/listar?page=0&size=10&sort=amount,desc
      * </p>
      *
-     * @param startDate data inicial do período (opcional)
-     * @param endDate data final do período (opcional)
-     * @param type tipo do lançamento (opcional)
-     * @param categoryId ID da categoria (opcional)
-     * @param page número da página (padrão: 0)
-     * @param size tamanho da página (padrão: 20)
-     * @param sortBy campo de ordenação (padrão: createdAt)
+     * @param startDate     data inicial do período (opcional)
+     * @param endDate       data final do período (opcional)
+     * @param type          tipo do lançamento (opcional)
+     * @param categoryId    ID da categoria (opcional)
+     * @param page          número da página (padrão: 0)
+     * @param size          tamanho da página (padrão: 20)
+     * @param sortBy        campo de ordenação (padrão: createdAt)
      * @param sortDirection direção da ordenação (padrão: desc)
      * @return ResponseEntity com status 200 (OK) e página de lançamentos
      */
@@ -216,7 +217,7 @@ public class TransactionController {
     }
 
     private Page<Transaction> findTransactionsByFilters(LocalDate startDate, LocalDate endDate,
-            String type, Long categoryId, Pageable pageable) {
+                                                        String type, Long categoryId, Pageable pageable) {
 
         // Filtros completos: período + (tipo E/OU categoria)
         if (startDate != null && endDate != null && (type != null || categoryId != null)) {
@@ -248,10 +249,11 @@ public class TransactionController {
     }
 
     private Page<Transaction> findTransactionsWithCompleteFilters(LocalDate startDate, LocalDate endDate,
-            String type, Long categoryId, Pageable pageable) {
+                                                                  String type, Long categoryId, Pageable pageable) {
 
         TransactionType transactionType = convertToTransactionType(type);
-        return transactionService.listTransactionsWithFilters(startDate, endDate, transactionType, categoryId, pageable);
+        return transactionService.listTransactionsWithFilters(startDate, endDate, transactionType, categoryId,
+                pageable);
     }
 
     private TransactionType convertToTransactionType(String type) {

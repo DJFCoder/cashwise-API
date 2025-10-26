@@ -3,7 +3,6 @@ package br.com.devjf.cashwise.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
@@ -16,6 +15,7 @@ public class CorsConfig {
             "https://cashwiseclient.vercel.app",
             "https://cashwise-react-webclient-git-master-juans-projects-70eb421e.vercel.app",
             "https://cashwise-react-webclient-c1l6e2ude-juans-projects-70eb421e.vercel.app",
+            "https://cashwise-api-production.up.railway.app",
             "http://localhost:3000",
             "http://127.0.0.1:3000"
     );
