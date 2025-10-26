@@ -12,7 +12,10 @@ public record TransactionResponse(
         BigDecimal amount,
         LocalDate date,
         String description,
-        String recurrency
+        String recurrency,
+        Boolean recurrencyActive,
+        LocalDate recurrencyEndDate,
+        Long parentTransactionId
         ) {
 
 }

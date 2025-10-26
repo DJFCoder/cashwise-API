@@ -1,9 +1,11 @@
 package br.com.devjf.cashwise.domain.dto.transaction;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -32,8 +34,11 @@ public record TransactionRequest(
         @NotBlank(message = "A recorrência é obrigatória")
         @Size(max = 11, message = "A recorrência deve conter no máximo 11 caracteres")
         @Pattern(regexp = "UNIQUE|DAILY|WEEKLY|MONTHLY|QUARTERLY|ANNUAL",
-                message = "A recorrência deve ser UNIQUE, DAILY, WEEKLY, MONTHLY, QUARTERLY ou ANNUAL")
-        String recurrency
+                message = "A recorrência deve ser UNIQUE, DAILY, WEEKLY, MONTHLY, QUARTERLY ou ANUAL")
+        String recurrency,
+        @Positive(message = "A data de término da recorrência deve ser uma data válida")
+        @Future(message = "A data de término da recorrência deve ser uma data futura")
+        LocalDate recurrencyEndDate
         ) {
 
 }

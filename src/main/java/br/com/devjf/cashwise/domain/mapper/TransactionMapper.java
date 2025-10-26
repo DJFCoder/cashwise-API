@@ -45,7 +45,7 @@ public class TransactionMapper {
      *
      * @param request DTO contendo os dados do lançamento a ser criado
      * @return entidade Transaction populada com os dados do request
-     * @throws EntityNotFoundException  se a categoria especificada não existir
+     * @throws EntityNotFoundException se a categoria especificada não existir
      * @throws IllegalArgumentException se o tipo ou recorrência forem inválidos
      */
     public Transaction toEntity(TransactionRequest request) {
@@ -69,7 +69,8 @@ public class TransactionMapper {
      * </p>
      *
      * @param entity entidade Transaction a ser convertida
-     * @return DTO TransactionResponse contendo os dados formatados do lançamento
+     * @return DTO TransactionResponse contendo os dados formatados do
+     * lançamento
      */
     public TransactionResponse toResponse(Transaction entity) {
         return new TransactionResponse(
@@ -79,21 +80,25 @@ public class TransactionMapper {
                 entity.getAmount(),
                 entity.getCreatedAt().toLocalDate(),
                 entity.getDescription(),
-                entity.getRecurrency().name());
+                entity.getRecurrency().name(),
+                entity.getRecurrencyActive(),
+                entity.getRecurrencyEndDate(),
+                entity.getParentTransactionId()
+        );
     }
-
+    
     /**
      * Converte uma string em português em um enum TransactionType.
      * <p>
-     * Utiliza o método fromDescription() do enum para converter
-     * "Receita" ou "Despesa" para seus respectivos valores enum.
+     * Utiliza o método fromDescription() do enum para converter "Receita" ou
+     * "Despesa" para seus respectivos valores enum.
      * </p>
      *
      * @param type string representando o tipo do lançamento em português
-     *             (exemplo: "Receita", "Despesa")
+     * (exemplo: "Receita", "Despesa")
      * @return enum TransactionType correspondente
      * @throws IllegalArgumentException se o tipo fornecido não corresponder a
-     *                                  nenhum valor válido
+     * nenhum valor válido
      */
     private TransactionType convertToTransactionType(String type) {
         return TransactionType.fromDescription(type);
@@ -107,10 +112,10 @@ public class TransactionMapper {
      * </p>
      *
      * @param recurrency string representando o tipo de recorrência (ex:
-     *                   "MONTHLY", "UNIQUE")
+     * "MONTHLY", "UNIQUE")
      * @return enum RecurrencyType correspondente
      * @throws IllegalArgumentException se a recorrência fornecida não
-     *                                  corresponder a nenhum valor do enum
+     * corresponder a nenhum valor do enum
      */
     private RecurrencyType convertToRecurrencyType(String recurrency) {
         return RecurrencyType.valueOf(recurrency.toUpperCase());
