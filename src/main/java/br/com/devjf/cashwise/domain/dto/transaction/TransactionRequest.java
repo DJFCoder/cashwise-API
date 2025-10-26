@@ -36,7 +36,7 @@ public record TransactionRequest(
         @Pattern(regexp = "UNIQUE|DAILY|WEEKLY|MONTHLY|QUARTERLY|ANNUAL",
                 message = "A recorrência deve ser UNIQUE, DAILY, WEEKLY, MONTHLY, QUARTERLY ou ANUAL")
         String recurrency,
-        @Positive(message = "A data de término da recorrência deve ser uma data válida")
+
         @Future(message = "A data de término da recorrência deve ser uma data futura")
         LocalDate recurrencyEndDate
         ) {
